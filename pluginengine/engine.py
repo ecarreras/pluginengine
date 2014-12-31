@@ -20,7 +20,7 @@ class PluginEngine(object):
 
     def __init__(self, namespace, logger=None):
         self._state = _PluginEngineState(self, logger)
-        self.plugins_to_load = None
+        self.plugins_to_load = []
         self.plugins_namespace = namespace
 
     @property
@@ -37,13 +37,13 @@ class PluginEngine(object):
         """
         state = self.state
         if state.plugins_loaded:
-            raise RuntimeError('Plugins already loaded for {}'.format(state.app))
+            raise RuntimeError('Plugins already loaded')
         state.plugins_loaded = True
         plugins = self._import_plugins()
         if state.failed and not skip_failed:
             return False
         for name, cls in resolve_dependencies(plugins):
-            instance = cls(self, state.app)
+            instance = cls(self)
             state.plugins[name] = instance
         plugins_loaded.send()
         return not state.failed
@@ -56,7 +56,7 @@ class PluginEngine(object):
         """
         state = self.state
         plugins = {}
-        for name in self.plugins_to_load or [None]:
+        for name in self.plugins_to_load:
             entry_points = list(iter_entry_points(self.plugins_namespace, name))
             if not entry_points:
                 state.logger.error('Plugin {} does not exist'.format(name))

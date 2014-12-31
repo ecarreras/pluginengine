@@ -58,12 +58,10 @@ class Plugin(object):
     required_plugins = frozenset()
     used_plugins = frozenset()
 
-    def __init__(self, plugin_engine, app):
+    def __init__(self, plugin_engine):
         self.plugin_engine = plugin_engine
-        self.app = app
-        with self.app.app_context():
-            with self.plugin_context():
-                self.init()
+        with self.plugin_context():
+            self.init()
 
     def init(self):
         """Initializes the plugin at application startup.
