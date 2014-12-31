@@ -7,30 +7,27 @@
 from __future__ import unicode_literals
 from pkg_resources import iter_entry_points, get_distribution
 
-from flask import current_app
-from flask.helpers import get_root_path
 from werkzeug.datastructures import ImmutableDict
 
 from .plugin import Plugin
 from .signals import plugins_loaded
-from .util import get_state, resolve_dependencies
+from .util import resolve_dependencies, get_root_path
+from .logging import create_logger
 
 
 class PluginEngine(object):
     plugin_class = Plugin
 
-    def __init__(self, app=None, **kwargs):
-        self.logger = None
-        if app is not None:
-            self.init_app(app, **kwargs)
+    def __init__(self, namespace, logger=None):
+        self._state = _PluginEngineState(self, logger)
+        self.plugins_to_load = None
+        self.plugins_namespace = namespace
 
-    def init_app(self, app, logger=None):
-        app.extensions['pluginengine'] = _PluginEngineState(self, app, logger or app.logger)
-        app.config.setdefault('PLUGINENGINE_PLUGINS', {})
-        if not app.config.get('PLUGINENGINE_NAMESPACE'):
-            raise Exception('PLUGINENGINE_NAMESPACE is not set')
+    @property
+    def state(self):
+        return self._state
 
-    def load_plugins(self, app, skip_failed=True):
+    def load_plugins(self, skip_failed=True):
         """Loads all plugins for an application.
 
         :param app: A Flask application
@@ -38,29 +35,29 @@ class PluginEngine(object):
           plugins could not be loaded.
         :return: True if all plugins could have been loaded, False otherwise.
         """
-        state = get_state(app)
+        state = self.state
         if state.plugins_loaded:
             raise RuntimeError('Plugins already loaded for {}'.format(state.app))
         state.plugins_loaded = True
-        plugins = self._import_plugins(state.app)
+        plugins = self._import_plugins()
         if state.failed and not skip_failed:
             return False
         for name, cls in resolve_dependencies(plugins):
             instance = cls(self, state.app)
             state.plugins[name] = instance
-        plugins_loaded.send(app)
+        plugins_loaded.send()
         return not state.failed
 
-    def _import_plugins(self, app):
+    def _import_plugins(self):
         """Imports the plugins for an application.
 
         :param app: A Flask application
         :return: A dict mapping plugin names to plugin classes
         """
-        state = get_state(app)
+        state = self.state
         plugins = {}
-        for name in state.app.config['PLUGINENGINE_PLUGINS']:
-            entry_points = list(iter_entry_points(app.config['PLUGINENGINE_NAMESPACE'], name))
+        for name in self.plugins_to_load or [None]:
+            entry_points = list(iter_entry_points(self.plugins_namespace, name))
             if not entry_points:
                 state.logger.error('Plugin {} does not exist'.format(name))
                 state.failed.add(name)
@@ -90,53 +87,50 @@ class PluginEngine(object):
             plugins[name] = plugin_class
         return plugins
 
-    def get_failed_plugins(self, app=None):
+    def get_failed_plugins(self):
         """Returns the list of plugins which could not be loaded.
 
         :param app: A Flask app. Defaults to the current app.
         """
-        state = get_state(app or current_app)
-        return frozenset(state.failed)
+        return frozenset(self.state.failed)
 
-    def get_active_plugins(self, app=None):
+    def get_active_plugins(self):
         """Returns the currently active plugins.
 
         :param app: A Flask app. Defaults to the current app.
         :return: dict mapping plugin names to plugin instances
         """
-        state = get_state(app or current_app)
-        return ImmutableDict(state.plugins)
+        return ImmutableDict(self.state.plugins)
 
-    def has_plugin(self, name, app=None):
+    def has_plugin(self, name):
         """Returns if a plugin is loaded in the current app.
 
         :param name: Plugin name
         :param app: A Flask app. Defaults to the current app.
         """
-        state = get_state(app or current_app)
-        return name in state.plugins
+        return name in self.state.plugins
 
-    def get_plugin(self, name, app=None):
+    def get_plugin(self, name):
         """Return a specific plugin of the current app.
 
         :param name: Plugin name
         :param app: A Flask app. Defaults to the current app.
         """
-        state = get_state(app or current_app)
-        return state.plugins.get(name)
+        return self.state.plugins.get(name)
 
     def __repr__(self):
         return '<PluginEngine()>'
 
 
 class _PluginEngineState(object):
-    def __init__(self, plugin_engine, app, logger):
+    def __init__(self, plugin_engine, logger=None):
+        if logger is None:
+            logger = create_logger(__name__)
         self.plugin_engine = plugin_engine
-        self.app = app
         self.logger = logger
         self.plugins = {}
         self.failed = set()
         self.plugins_loaded = False
 
     def __repr__(self):
-        return '<_PluginEngineState({}, {}, {})>'.format(self.plugin_engine, self.app, self.plugins)
+        return '<_PluginEngineState({}, {})>'.format(self.plugin_engine, self.plugins)

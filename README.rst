@@ -1,7 +1,4 @@
-Flask-PluginEngine
-==================
+pluginengine
+============
 
-.. image:: https://travis-ci.org/indico/flask-pluginengine.svg
-    :target: https://travis-ci.org/indico/flask-pluginengine
-
-Plugin system for Flask applications
+A generic plugin engine system based on Plugin system for Flask applications (https://github.com/indico/flask-pluginengine)

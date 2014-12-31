@@ -29,18 +29,17 @@ class PyTest(TestCommand):
 
 
 setup(
-    name='Flask-PluginEngine',
+    name='pluginengine',
     version='0.1',
-    url='https://github.com/indico/flask-pluginengine',
+    url='https://github.com/ecarreras/pluginengine',
     license='BSD',
-    author='Indico Team',
-    author_email='indico-team@cern.ch',
-    packages=['flask_pluginengine'],
+    author='Eduard Carreras',
+    author_email='ecarreras@gmail.com',
+    packages=['pluginengine'],
     zip_safe=False,
     include_package_data=True,
     platforms='any',
     install_requires=[
-        'Flask>=0.7',
         'blinker'
     ],
     tests_require=['pytest'],

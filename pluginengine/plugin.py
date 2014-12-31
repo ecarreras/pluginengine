@@ -7,8 +7,6 @@
 from __future__ import unicode_literals
 from contextlib import contextmanager
 
-from flask import render_template, url_for
-
 from .globals import _plugin_ctx_stack, current_plugin
 from .util import wrap_in_plugin_context, trim_docstring
 
@@ -49,32 +47,6 @@ def uses(*plugins):
         return cls
 
     return wrapper
-
-
-def render_plugin_template(template_name_or_list, **context):
-    """Renders a template from the plugin's template folder with the given context.
-
-    If the template name contains a plugin name (``pluginname:name``), that
-    name is used instead of the current plugin's name.
-
-    :param template_name_or_list: the name of the template or an iterable
-                                  containing template names (the first
-                                  existing template is used)
-    :param context: the variables that should be available in the
-                    context of the template.
-    """
-    if not isinstance(template_name_or_list, basestring):
-        template_name_or_list = ['{}:{}'.format(current_plugin.name, tpl) if ':' not in tpl else tpl
-                                 for tpl in template_name_or_list]
-    elif ':' not in template_name_or_list:
-        template_name_or_list = '{}:{}'.format(current_plugin.name, template_name_or_list)
-    return render_template(template_name_or_list, **context)
-
-
-def url_for_plugin(endpoint, **values):
-    """Like url_for but prepending plugin_ to endpoint."""
-    endpoint = 'plugin_{}'.format(endpoint)
-    return url_for(endpoint, **values)
 
 
 class Plugin(object):

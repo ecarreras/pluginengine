@@ -10,7 +10,7 @@ import pytest
 from pytest import raises
 
 from flask import Flask
-from flask_pluginengine import PluginEngine, plugins_loaded, Plugin
+from pluginengine import PluginEngine, plugins_loaded, Plugin
 
 
 class EspressoModule(Plugin):
@@ -65,7 +65,7 @@ def engine(flask_app):
 
 @pytest.fixture
 def mock_entry_point(monkeypatch):
-    from flask_pluginengine import engine as engine_mod
+    from pluginengine import engine as engine_mod
 
     def _mock_entry_points(_, name):
         return {
@@ -90,15 +90,6 @@ def loaded_engine(mock_entry_point, flask_app, engine):
     return engine
 
 
-def test_fail_pluginengine_namespace(flask_app):
-    """
-    Fail if PLUGINENGINE_NAMESPACE is not defined
-    """
-    del flask_app.config['PLUGINENGINE_NAMESPACE']
-    with raises(Exception) as exc_info:
-        PluginEngine(app=flask_app)
-    assert 'PLUGINENGINE_NAMESPACE' in str(exc_info.value)
-
 
 def test_load(mock_entry_point, flask_app, engine):
     """
@@ -110,10 +101,10 @@ def test_load(mock_entry_point, flask_app, engine):
     def _on_load(sender):
         loaded['result'] = True
 
-    plugins_loaded.connect(_on_load, flask_app)
+    plugins_loaded.connect(_on_load)
     engine.load_plugins(flask_app)
 
-    assert loaded['result']
+    assert loaded['result'] is True
 
     with flask_app.app_context():
         assert len(engine.get_failed_plugins()) == 0
@@ -244,6 +235,6 @@ def test_repr_state(flask_app, loaded_engine):
     """
     Check that repr(PluginEngineState(...)) is OK
     """
-    from flask_pluginengine.util import get_state
+    from pluginengine.util import get_state
     assert repr(get_state(flask_app)) == "<_PluginEngineState(<PluginEngine()>, <Flask 'test_engine'>, " \
            "{'espresso': <EspressoModule(espresso) bound to <Flask 'test_engine'>>})>"
